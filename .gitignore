@@ -1,0 +1,100 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Logs ###
+logs/
+*.log
+log/
+logging/
+
+### Environment ###
+.env
+.env.local
+.env.*.local
+!.env.example
+
+### Docker ###
+docker-compose.override.yml
+docker-compose.prod.yml
+
+### Application ###
+application-local.yml
+application-dev.yml
+application-prod.yml
+!application.yml
+
+### Database ###
+*.db
+*.sqlite
+*.h2.db
+
+### IDE ###
+*.swp
+*.swo
+*~
+.attach_pid*
+
+### Mac ###
+.DS_Store
+
+### Windows ###
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+### Gradle ###
+gradle-app.setting
+!gradle/wrapper/gradle-wrapper.properties
+
+### Build ###
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### Test ###
+jacoco.exec
+*.gcda
+*.gcno
+
+### Others ###
+dump.rdb
+*.orig
+*.bak
+temp/
+tmp/
+flyway-*
