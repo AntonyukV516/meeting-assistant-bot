@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+
+    <!-- 👇 Проверка табуляций -->
+    <module name="FileTabCharacter"/>
+
+    <!-- 👇 Проверка длины строки (макс 120 символов) -->
+    <module name="LineLength">
+        <property name="max" value="120"/>
+        <property name="ignorePattern" value="^package.*|^import.*|^//.*"/>
+    </module>
+
+    <module name="TreeWalker">
+        <!-- 👇 Проверка импортов -->
+        <module name="UnusedImports"/>  <!-- Неиспользуемые импорты -->
+
+        <!-- 👇 Порядок импортов -->
+        <module name="ImportOrder">
+            <property name="groups" value="java,javax,org,com"/>
+            <property name="ordered" value="true"/>  <!-- Должны быть отсортированы -->
+            <property name="separated" value="true"/>  <!-- Группы разделены пустой строкой -->
+        </module>
+
+        <!-- 👇 Имена методов (должны начинаться с маленькой буквы) -->
+        <module name="MethodName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+
+        <!-- 👇 Имена переменных -->
+        <module name="LocalVariableName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+
+        <!-- 👇 Имена параметров -->
+        <module name="ParameterName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+
+        <!-- 👇 Имена констант (должны быть UPPER_CASE) -->
+        <module name="ConstantName">
+            <property name="format" value="^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
+        </module>
+    </module>
+</module>
