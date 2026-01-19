@@ -98,3 +98,7 @@ dump.rdb
 temp/
 tmp/
 flyway-*
+
+###joCoCo###
+jacoco.exec
+*.exec
