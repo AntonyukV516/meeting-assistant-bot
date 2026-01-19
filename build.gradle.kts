@@ -3,6 +3,7 @@ plugins {
 	id("org.springframework.boot") version "3.5.9"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("checkstyle")
+	id("jacoco")
 }
 
 group = "com.antonyukV516"
@@ -40,7 +41,7 @@ tasks.withType<Test> {
 tasks.register("ciCheck") {
 	group = "verification"
 	description = "Run all checks for CI pipeline"
-	dependsOn("checkstyleMain", "checkstyleTest", "build", "test")
+	dependsOn("checkstyleMain", "checkstyleTest", "build", "test", "jacocoTestReport")
 }
 
 tasks.register("checkstyleInfo") {
@@ -57,5 +58,59 @@ tasks.register("checkstyleInfo") {
 		println("   • ./gradlew checkstyleTest    - Check test source code")
 		println("   • ./gradlew ciCheck          - Run all CI checks")
 		println("   • ./gradlew checkstyleInfo   - Show this info")
+	}
+}
+
+jacoco {
+	toolVersion = "0.8.11"
+	reportsDirectory = layout.buildDirectory.dir("reports/jacoco")
+}
+
+tasks.jacocoTestReport {
+	dependsOn(tasks.test)
+
+	reports {
+		xml.required = true
+		html.required = true
+		csv.required = false
+	}
+
+	classDirectories.setFrom(
+		files(classDirectories.files.map {
+			fileTree(it).apply {
+				exclude(
+					"**/MeetingAssistantBotApplication.class",
+					"**/config/**",
+					"**/dto/**",
+					"**/entity/**"
+				)
+			}
+		})
+	)
+}
+
+tasks.jacocoTestCoverageVerification {
+	dependsOn(tasks.jacocoTestReport)
+
+	violationRules {
+		rule {
+			limit {
+				minimum = BigDecimal.valueOf(0.3)
+			}
+		}
+	}
+}
+
+tasks.register("jacocoInfo") {
+	group = "help"
+	description = "Show JaCoCo configuration info"
+	doLast {
+		println("📊 JaCoCo Configuration:")
+		println("   • Tool version: ${jacoco.toolVersion}")
+		println("   • Reports directory: ${jacoco.reportsDirectory.get()}")
+		println("\n🔧 Available tasks:")
+		println("   • ./gradlew test              - Run tests")
+		println("   • ./gradlew jacocoTestReport  - Generate coverage report")
+		println("   • ./gradlew jacocoTestCoverageVerification - Check coverage limits")
 	}
 }
