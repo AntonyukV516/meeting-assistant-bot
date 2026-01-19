@@ -2,79 +2,27 @@ spring:
   application:
     name: meeting-assistant-bot
 
-  # Profiles
-  profiles:
-    active: local
-    group:
-      local: dev,telegram
-      dev: telegram
-      prod: monitoring,security,telegram
+server:
+  port: 8080
 
-  # Database
-  datasource:
-    url: jdbc:postgresql://localhost:5432/meeting_bot_db
-    username: bot_user
-    password: bot_password
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-
-  # JPA
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        jdbc:
-          batch_size: 25
-
-  # Flyway
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    locations: classpath:db/migration
-
-  # Redis
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password: redis_pass
-
-  # RabbitMQ
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: rabbit_user
-    password: rabbit_pass
-    listener:
-      simple:
-        prefetch: 10
-
-      # Telegram Bot
-      #telegram:
-      # bot:
-      #  token: ${TELEGRAM_BOT_TOKEN:xxx}
-      # username: ${TELEGRAM_BOT_USERNAME:xxx}
-      #webhook:
-      # enabled: false
-
-# Actuator
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,env,beans
+      base-path: /actuator
   endpoint:
     health:
-      show-details: when-authorized
-      probes:
-        enabled: true
+      show-details: always
+    info:
+      enabled: true
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
 
-# Server
-server:
-  port: 8080
-  servlet:
-    context-path: /api
+logging:
+  level:
+    root: INFO
+    org.springframework.boot.actuator: DEBUG
