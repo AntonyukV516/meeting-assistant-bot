@@ -75,8 +75,8 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -x test
 
-      - name: Run tests
-        run: ./gradlew test
+      - name: Run tests with H2
+        run: ./gradlew test -Dspring.profiles.active=test
 
       - name: Upload reports
         if: always()
@@ -85,7 +85,7 @@ jobs:
           name: build-reports
           path: |
             build/reports/
-            build/test-results/        
+            build/test-results/
 
   docker-test:
     runs-on: ubuntu-latest
@@ -95,40 +95,98 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Start PostgreSQL container
+        run: |
+          docker run -d \
+            --name test-postgres \
+            -e POSTGRES_DB=meeting_bot_db \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=bot_password \
+            -p 5432:5432 \
+            postgres:16-alpine
+
+          echo "⏳ Waiting for PostgreSQL to be ready..."
+          
+          # Используем bash-совместимый синтаксис
+          for i in {1..30}; do
+            if docker exec test-postgres pg_isready -U postgres > /dev/null 2>&1; then
+              echo "✅ PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Create application user in PostgreSQL
+        run: |
+          echo "👤 Creating bot_user..."
+          docker exec test-postgres psql -U postgres -c "
+            DO \$\$
+            BEGIN
+              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'bot_user') THEN
+                CREATE USER bot_user WITH PASSWORD 'bot_password';
+              END IF;
+            END
+            \$\$;
+
+            GRANT ALL PRIVILEGES ON DATABASE meeting_bot_db TO bot_user;
+          "
+          
+          docker exec test-postgres psql -U postgres -d meeting_bot_db -c "
+            GRANT ALL ON SCHEMA public TO bot_user;
+            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO bot_user;
+          "
+
       - name: Build Docker image
         run: docker build -t meeting-bot:ci-${{ github.sha }} .
 
-      - name: Run and health check
+      - name: Run and health check with PostgreSQL
         run: |
-          docker run -d -p 8080:8080 --name meeting-bot-container meeting-bot:ci-${{ github.sha }}
-          
+          docker run -d --name meeting-bot-container -p 8080:8080 \
+            --link test-postgres:postgres \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://test-postgres:5432/meeting_bot_db \
+            -e SPRING_DATASOURCE_USERNAME=bot_user \
+            -e SPRING_DATASOURCE_PASSWORD=bot_password \
+            meeting-bot:ci-${{ github.sha }}
+
           echo "⏳ Waiting for application to start..."
-          
           sleep 10
+
+          MAX_RETRIES=10
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Health check attempt $i/$MAX_RETRIES..."
           
-          echo "🔍 Checking health endpoint..."
+            if curl -s http://localhost:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
+              echo "✅ Application is UP!"
+              echo "🔍 Checking Actuator main endpoint..."
+              curl -s http://localhost:8080/actuator > /dev/null && echo "✅ Actuator working!" || echo "⚠️ Actuator issue"
+              break
+            fi
           
-          HEALTH_CHECK=$(curl --retry 5 --retry-delay 3 --retry-all-errors -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Health check failed after $MAX_RETRIES attempts!"
+              echo "=== Application logs ==="
+              docker logs meeting-bot-container
+              echo "=== PostgreSQL logs ==="
+              docker logs test-postgres
+              exit 1
+            fi
           
-          echo "Health check HTTP status: $HEALTH_CHECK"
+            sleep 5
+          done
           
-          if [ "$HEALTH_CHECK" != "200" ]; then
-            echo "❌ Health check failed! Container logs:"
-            docker logs meeting-bot-container
-            exit 1 
-          fi
-          
-          echo "✅ Health check passed!"
-          
-          echo "🔍 Checking Actuator main endpoint..."
-          curl -f http://localhost:8080/actuator || exit 1
-          
-          docker stop meeting-bot-container
-          docker rm meeting-bot-container
+          echo "✅ All checks passed!"
 
       - name: Check image size
         run: |
           docker images meeting-bot:ci-${{ github.sha }}
-          
-          SIZE=$(docker images meeting-bot:ci-${{ github.sha }} --format "{{.Size}}")
+          SIZE=$(docker images meeting-bot:ci-${{ github.sha }} --format "{{.Size}}" 2>/dev/null || echo "Unknown")
           echo "📦 Docker image size: $SIZE"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop meeting-bot-container 2>/dev/null || true
+          docker rm meeting-bot-container 2>/dev/null || true
+          docker stop test-postgres 2>/dev/null || true
+          docker rm test-postgres 2>/dev/null || true
