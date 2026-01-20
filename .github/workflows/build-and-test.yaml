@@ -100,13 +100,38 @@ jobs:
           docker run -d \
             --name test-postgres \
             -e POSTGRES_DB=meeting_bot_db \
-            -e POSTGRES_USER=bot_user \
+            -e POSTGRES_USER=postgres \  # ← ИЗМЕНИ НА postgres!
             -e POSTGRES_PASSWORD=bot_password \
             -p 5432:5432 \
             postgres:16-alpine
-          
+
           echo "⏳ Waiting for PostgreSQL to be ready..."
-          sleep 10  
+          # Лучше ждать с проверкой
+          for i in {1..30}; do
+            if docker exec test-postgres pg_isready -U postgres; then
+              echo "✅ PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Create application user in PostgreSQL
+        run: |
+          echo "👤 Creating bot_user..."
+          docker exec test-postgres psql -U postgres -c "
+            DO \$\$
+            BEGIN
+              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'bot_user') THEN
+                CREATE USER bot_user WITH PASSWORD 'bot_password';
+              END IF;
+            END
+            \$\$;
+
+            GRANT ALL PRIVILEGES ON DATABASE meeting_bot_db TO bot_user;
+            \c meeting_bot_db
+            GRANT ALL ON SCHEMA public TO bot_user;
+          "
 
       - name: Build Docker image
         run: docker build -t meeting-bot:ci-${{ github.sha }} .
@@ -121,41 +146,52 @@ jobs:
             -e SPRING_DATASOURCE_USERNAME=bot_user \
             -e SPRING_DATASOURCE_PASSWORD=bot_password \
             meeting-bot:ci-${{ github.sha }}
-          
-          echo "⏳ Waiting for application to start..."
-          
-          sleep 30
-          
-          echo "🔍 Checking health endpoint..."
-          
-          HEALTH_CHECK=$(curl --retry 10 --retry-delay 5 --retry-all-errors -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
-          
-          echo "Health check HTTP status: $HEALTH_CHECK"
-          
-          if [ "$HEALTH_CHECK" != "200" ]; then
-            echo "❌ Health check failed! Container logs:"
-            docker logs meeting-bot-container
-            echo "=== PostgreSQL logs ==="
-            docker logs test-postgres
-            exit 1 
-          fi
-          
-          echo "✅ Health check passed!"
-          
-          echo "🔍 Checking Actuator main endpoint..."
-          curl -f http://localhost:8080/actuator || (echo "❌ Actuator failed!" && docker logs meeting-bot-container && exit 1)
-          
-          echo "✅ All checks passed!"
 
-      - name: Cleanup
-        if: always()
-        run: |
-          docker stop meeting-bot-container test-postgres || true
-          docker rm meeting-bot-container test-postgres || true
+          echo "⏳ Waiting for application to start..."
+
+          # Умная проверка готовности
+          MAX_RETRIES=15
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Health check attempt $i/$MAX_RETRIES..."
+
+            if curl -s -f http://localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo "✅ Health check passed!"
+
+              # Дополнительная проверка статуса
+              STATUS=$(curl -s http://localhost:8080/actuator/health | jq -r .status 2>/dev/null || echo "UNKNOWN")
+              if [ "$STATUS" = "UP" ]; then
+                echo "✅ Application status: UP"
+                break
+              else
+                echo "⚠️ Health endpoint accessible but status: $STATUS"
+              fi
+            fi
+
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Health check failed after $MAX_RETRIES attempts!"
+              echo "=== Application logs ==="
+              docker logs meeting-bot-container
+              echo "=== PostgreSQL logs ==="
+              docker logs test-postgres | tail -50
+              exit 1
+            fi
+
+            sleep 4
+          done
+
+          echo "🔍 Checking Actuator endpoints..."
+          curl -f http://localhost:8080/actuator || (echo "❌ Actuator failed!" && docker logs meeting-bot-container && exit 1)
+
+          echo "✅ All checks passed!"
 
       - name: Check image size
         run: |
           docker images meeting-bot:ci-${{ github.sha }}
-          
           SIZE=$(docker images meeting-bot:ci-${{ github.sha }} --format "{{.Size}}")
           echo "📦 Docker image size: $SIZE"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop meeting-bot-container test-postgres 2>/dev/null || true
+          docker rm meeting-bot-container test-postgres 2>/dev/null || true
