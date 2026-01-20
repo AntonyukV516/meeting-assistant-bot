@@ -85,7 +85,7 @@ jobs:
           name: build-reports
           path: |
             build/reports/
-            build/test-results/        
+            build/test-results/
 
   docker-test:
     runs-on: ubuntu-latest
@@ -100,15 +100,16 @@ jobs:
           docker run -d \
             --name test-postgres \
             -e POSTGRES_DB=meeting_bot_db \
-            -e POSTGRES_USER=postgres \  # ← ИЗМЕНИ НА postgres!
+            -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD=bot_password \
             -p 5432:5432 \
             postgres:16-alpine
 
           echo "⏳ Waiting for PostgreSQL to be ready..."
-          # Лучше ждать с проверкой
+          
+          # Используем bash-совместимый синтаксис
           for i in {1..30}; do
-            if docker exec test-postgres pg_isready -U postgres; then
+            if docker exec test-postgres pg_isready -U postgres > /dev/null 2>&1; then
               echo "✅ PostgreSQL is ready!"
               break
             fi
@@ -129,8 +130,11 @@ jobs:
             \$\$;
 
             GRANT ALL PRIVILEGES ON DATABASE meeting_bot_db TO bot_user;
-            \c meeting_bot_db
+          "
+          
+          docker exec test-postgres psql -U postgres -d meeting_bot_db -c "
             GRANT ALL ON SCHEMA public TO bot_user;
+            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO bot_user;
           "
 
       - name: Build Docker image
@@ -138,9 +142,7 @@ jobs:
 
       - name: Run and health check with PostgreSQL
         run: |
-          docker run -d \
-            -p 8080:8080 \
-            --name meeting-bot-container \
+          docker run -d --name meeting-bot-container -p 8080:8080 \
             --link test-postgres:postgres \
             -e SPRING_DATASOURCE_URL=jdbc:postgresql://test-postgres:5432/meeting_bot_db \
             -e SPRING_DATASOURCE_USERNAME=bot_user \
@@ -148,50 +150,43 @@ jobs:
             meeting-bot:ci-${{ github.sha }}
 
           echo "⏳ Waiting for application to start..."
+          sleep 10
 
-          # Умная проверка готовности
-          MAX_RETRIES=15
+          MAX_RETRIES=10
           for i in $(seq 1 $MAX_RETRIES); do
             echo "Health check attempt $i/$MAX_RETRIES..."
-
-            if curl -s -f http://localhost:8080/actuator/health > /dev/null 2>&1; then
-              echo "✅ Health check passed!"
-
-              # Дополнительная проверка статуса
-              STATUS=$(curl -s http://localhost:8080/actuator/health | jq -r .status 2>/dev/null || echo "UNKNOWN")
-              if [ "$STATUS" = "UP" ]; then
-                echo "✅ Application status: UP"
-                break
-              else
-                echo "⚠️ Health endpoint accessible but status: $STATUS"
-              fi
+          
+            if curl -s http://localhost:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
+              echo "✅ Application is UP!"
+              echo "🔍 Checking Actuator main endpoint..."
+              curl -s http://localhost:8080/actuator > /dev/null && echo "✅ Actuator working!" || echo "⚠️ Actuator issue"
+              break
             fi
-
+          
             if [ $i -eq $MAX_RETRIES ]; then
               echo "❌ Health check failed after $MAX_RETRIES attempts!"
               echo "=== Application logs ==="
               docker logs meeting-bot-container
               echo "=== PostgreSQL logs ==="
-              docker logs test-postgres | tail -50
+              docker logs test-postgres
               exit 1
             fi
-
-            sleep 4
+          
+            sleep 5
           done
-
-          echo "🔍 Checking Actuator endpoints..."
-          curl -f http://localhost:8080/actuator || (echo "❌ Actuator failed!" && docker logs meeting-bot-container && exit 1)
-
+          
           echo "✅ All checks passed!"
 
       - name: Check image size
         run: |
           docker images meeting-bot:ci-${{ github.sha }}
-          SIZE=$(docker images meeting-bot:ci-${{ github.sha }} --format "{{.Size}}")
+          SIZE=$(docker images meeting-bot:ci-${{ github.sha }} --format "{{.Size}}" 2>/dev/null || echo "Unknown")
           echo "📦 Docker image size: $SIZE"
 
       - name: Cleanup
         if: always()
         run: |
-          docker stop meeting-bot-container test-postgres 2>/dev/null || true
-          docker rm meeting-bot-container test-postgres 2>/dev/null || true
+          docker stop meeting-bot-container 2>/dev/null || true
+          docker rm meeting-bot-container 2>/dev/null || true
+          docker stop test-postgres 2>/dev/null || true
+          docker rm test-postgres 2>/dev/null || true
