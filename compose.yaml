@@ -4,26 +4,29 @@ services:
     container_name: meeting-bot-postgres
     environment:
       POSTGRES_DB: meeting_bot_db
-      POSTGRES_USER: bot_user
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: bot_password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bot_user"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - meeting-bot-network
 
   meeting-bot:
     build: .
+    container_name: meeting-bot
     ports:
       - "8080:8080"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/meeting_bot_db
-      - SPRING_DATASOURCE_USERNAME=bot_user
-      - SPRING_DATASOURCE_PASSWORD=bot_password
+    networks:
+      - meeting-bot-network
     depends_on:
       postgres:
         condition: service_healthy

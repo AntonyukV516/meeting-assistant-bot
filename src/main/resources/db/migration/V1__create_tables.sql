@@ -19,7 +19,7 @@ CREATE TABLE meetings (
     date_time TIMESTAMP,
     location VARCHAR(100),
     max_people INTEGER,
-    creator_username VARCHAR(50) NOT NULL REFERENCES users(telegram_username) ON DELETE CASCADE,
+    creator_username VARCHAR(50) NOT NULL REFERENCES users(telegram_username) ON DELETE CASCADE
 );
 
 -- Таблица тегов встреч (Enum Tag будет храниться как VARCHAR)
