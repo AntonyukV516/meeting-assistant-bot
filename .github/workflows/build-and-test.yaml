@@ -75,8 +75,8 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -x test
 
-      - name: Run tests
-        run: ./gradlew test
+      - name: Run tests with H2
+        run: ./gradlew test -Dspring.profiles.active=test
 
       - name: Upload reports
         if: always()
@@ -95,36 +95,63 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Start PostgreSQL container
+        run: |
+          docker run -d \
+            --name test-postgres \
+            -e POSTGRES_DB=meeting_bot_db \
+            -e POSTGRES_USER=bot_user \
+            -e POSTGRES_PASSWORD=bot_password \
+            -p 5432:5432 \
+            postgres:16-alpine
+          
+          echo "⏳ Waiting for PostgreSQL to be ready..."
+          sleep 10  
+
       - name: Build Docker image
         run: docker build -t meeting-bot:ci-${{ github.sha }} .
 
-      - name: Run and health check
+      - name: Run and health check with PostgreSQL
         run: |
-          docker run -d -p 8080:8080 --name meeting-bot-container meeting-bot:ci-${{ github.sha }}
+          docker run -d \
+            -p 8080:8080 \
+            --name meeting-bot-container \
+            --link test-postgres:postgres \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://test-postgres:5432/meeting_bot_db \
+            -e SPRING_DATASOURCE_USERNAME=bot_user \
+            -e SPRING_DATASOURCE_PASSWORD=bot_password \
+            meeting-bot:ci-${{ github.sha }}
           
           echo "⏳ Waiting for application to start..."
           
-          sleep 10
+          sleep 30
           
           echo "🔍 Checking health endpoint..."
           
-          HEALTH_CHECK=$(curl --retry 5 --retry-delay 3 --retry-all-errors -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+          HEALTH_CHECK=$(curl --retry 10 --retry-delay 5 --retry-all-errors -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
           
           echo "Health check HTTP status: $HEALTH_CHECK"
           
           if [ "$HEALTH_CHECK" != "200" ]; then
             echo "❌ Health check failed! Container logs:"
             docker logs meeting-bot-container
+            echo "=== PostgreSQL logs ==="
+            docker logs test-postgres
             exit 1 
           fi
           
           echo "✅ Health check passed!"
           
           echo "🔍 Checking Actuator main endpoint..."
-          curl -f http://localhost:8080/actuator || exit 1
+          curl -f http://localhost:8080/actuator || (echo "❌ Actuator failed!" && docker logs meeting-bot-container && exit 1)
           
-          docker stop meeting-bot-container
-          docker rm meeting-bot-container
+          echo "✅ All checks passed!"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop meeting-bot-container test-postgres || true
+          docker rm meeting-bot-container test-postgres || true
 
       - name: Check image size
         run: |
