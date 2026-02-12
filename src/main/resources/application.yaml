@@ -44,3 +44,8 @@ logging:
   level:
     root: INFO
     org.springframework.boot.actuator: DEBUG
+
+telegram:
+  bot:
+    token: ${BOT_TOKEN:your_test_token_here}
+    username: ${BOT_USERNAME:MeetingAssistantBot}

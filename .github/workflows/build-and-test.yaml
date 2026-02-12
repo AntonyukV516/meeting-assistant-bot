@@ -147,6 +147,8 @@ jobs:
             -e SPRING_DATASOURCE_URL=jdbc:postgresql://test-postgres:5432/meeting_bot_db \
             -e SPRING_DATASOURCE_USERNAME=bot_user \
             -e SPRING_DATASOURCE_PASSWORD=bot_password \
+            -e BOT_TOKEN=${{ secrets.BOT_TOKEN }} \
+            -e BOT_USERNAME=${{ secrets.BOT_USERNAME }} \
             meeting-bot:ci-${{ github.sha }}
 
           echo "⏳ Waiting for application to start..."

@@ -21,7 +21,8 @@
 
         <!-- 👇 Имена методов (должны начинаться с маленькой буквы) -->
         <module name="MethodName">
-            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+            <property name="format" value="^[a-z][a-zA-Z0-9_]*$"/>
+            <property name="tokens" value="METHOD_DEF"/>
         </module>
 
         <!-- 👇 Имена переменных -->

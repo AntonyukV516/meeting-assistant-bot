@@ -1,9 +1,7 @@
 package com.antonyukV516.model;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
@@ -14,7 +12,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "meetings")
 @Data
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Meeting {
 
