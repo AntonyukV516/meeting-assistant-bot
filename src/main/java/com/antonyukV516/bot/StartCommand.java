@@ -13,7 +13,6 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 public class StartCommand implements CommandHandler {
 
     private final UserService userService;
-    private final MessageSender messageSender;
 
     @Override
     public boolean canHandle(String text) {
@@ -32,21 +31,18 @@ public class StartCommand implements CommandHandler {
 
             String response = String.format(
                     """
-                    👋 Привет, @%s!
-                    
-                    ✅ Вы успешно зарегистрированы!
-                    """,
+                            👋 Привет, @%s!
+                                                
+                            ✅ Вы успешно зарегистрированы!
+                            """,
                     username
             );
 
-            messageSender.sendMessage(chatId, response);
+            TelegramBot.send(chatId, response);
 
         } catch (Exception e) {
             log.error("Error handling /start command", e);
-            messageSender.sendMessage(chatId,
-                    "❌ Произошла ошибка при обработке команды.\n" +
-                            "Пожалуйста, попробуйте позже или обратитесь к администратору."
-            );
+            TelegramBot.send(chatId, "❌ Произошла ошибка при обработке команды.");
         }
     }
 }

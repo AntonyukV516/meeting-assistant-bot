@@ -10,8 +10,6 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 @Slf4j
 public class UnknownCommand implements CommandHandler {
 
-    private final MessageSender messageSender;
-
     @Override
     public boolean canHandle(String text) {
         return true;
@@ -26,13 +24,8 @@ public class UnknownCommand implements CommandHandler {
                                 
                 Доступные команды:
                 /start - начать работу с ботом
-                                
-                ⏳ Скоро появятся:
-                /new - создать встречу
-                /meetings - мои встречи
-                /help - помощь
                 """;
 
-        messageSender.sendMessage(chatId, response);
+        TelegramBot.send(chatId, response);
     }
 }
