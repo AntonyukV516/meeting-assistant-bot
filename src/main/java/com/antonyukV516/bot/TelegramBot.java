@@ -7,24 +7,22 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.util.List;
-
 @Component
 @Slf4j
 public class TelegramBot extends TelegramLongPollingBot {
 
     private final String botToken;
     private final String botUsername;
-    private final List<CommandHandler> commandHandlers;
+    private final CommandDispatcher commandDispatcher;
 
     public TelegramBot(
             @Value("${telegram.bot.token}") String botToken,
             @Value("${telegram.bot.username}") String botUsername,
-            List<CommandHandler> commandHandlers) {
+            CommandDispatcher commandDispatcher) {
         super(botToken);
         this.botToken = botToken;
         this.botUsername = botUsername;
-        this.commandHandlers = commandHandlers;
+        this.commandDispatcher = commandDispatcher;
     }
 
     @Override
@@ -50,11 +48,6 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         log.info("Message from @{} (chatId: {}): {}", username, chatId, text);
 
-        for (CommandHandler handler : commandHandlers) {
-            if (handler.canHandle(text)) {
-                handler.handle(message);
-                return;
-            }
-        }
+        commandDispatcher.dispatch(message);
     }
 }

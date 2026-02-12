@@ -4,29 +4,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 
-import java.util.List;
-
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("TelegramBot Routing Tests")
 class TelegramBotTest {
 
     @Mock
-    private CommandHandler startCommand;
-
-    @Mock
-    private CommandHandler unknownCommand;
-
-    @InjectMocks
-    private TelegramBot telegramBot;
+    private CommandDispatcher commandDispatcher;
 
     @Mock
     private Update update;
@@ -37,54 +31,55 @@ class TelegramBotTest {
     @Mock
     private User telegramUser;
 
+    private TelegramBot telegramBot;
+
     @BeforeEach
     void setUp() {
-        telegramBot = new TelegramBot("token", "bot",
-                List.of(startCommand, unknownCommand));
-
+        telegramBot = new TelegramBot("token", "bot", commandDispatcher);
         when(update.hasMessage()).thenReturn(true);
         when(update.getMessage()).thenReturn(message);
+    }
+
+    @Test
+    @DisplayName("✅ Должен передать сообщение в CommandDispatcher")
+    void onUpdateReceived_ShouldDispatchToCommandDispatcher() {
+        // given
         when(message.hasText()).thenReturn(true);
-    }
-
-    @Test
-    @DisplayName("✅ Должен направить /start в StartCommand")
-    void onUpdateReceived_ShouldRouteStartCommand() {
-        User mockUser = mock(User.class);
-        when(message.getFrom()).thenReturn(mockUser);
-        when(mockUser.getUserName()).thenReturn("testuser");
         when(message.getText()).thenReturn("/start");
-        when(startCommand.canHandle("/start")).thenReturn(true);
+        when(message.getFrom()).thenReturn(telegramUser);
+        when(telegramUser.getUserName()).thenReturn("testuser");
+        when(message.getChatId()).thenReturn(123L);
 
+        // when
         telegramBot.onUpdateReceived(update);
 
-        verify(startCommand).handle(message);
-        verify(unknownCommand, never()).handle(any());
-    }
-
-    @Test
-    @DisplayName("✅ Должен направить неизвестную команду в UnknownCommand")
-    void onUpdateReceived_ShouldRouteUnknownCommand() {
-        User mockUser = mock(User.class);
-        when(message.getFrom()).thenReturn(mockUser);
-        when(mockUser.getUserName()).thenReturn("testuser");
-        when(message.getText()).thenReturn("/unknown");
-        when(startCommand.canHandle("/unknown")).thenReturn(false);
-        when(unknownCommand.canHandle("/unknown")).thenReturn(true);
-
-        telegramBot.onUpdateReceived(update);
-
-        verify(startCommand, never()).handle(any());
-        verify(unknownCommand).handle(message);
+        // then
+        verify(commandDispatcher).dispatch(message);
     }
 
     @Test
     @DisplayName("✅ Должен игнорировать сообщения без текста")
     void onUpdateReceived_ShouldIgnoreNonTextMessages() {
+        // given
         when(message.hasText()).thenReturn(false);
 
+        // when
         telegramBot.onUpdateReceived(update);
 
-        verifyNoInteractions(startCommand, unknownCommand);
+        // then
+        verify(commandDispatcher, never()).dispatch(any());
+    }
+
+    @Test
+    @DisplayName("✅ Должен игнорировать обновления без сообщения")
+    void onUpdateReceived_ShouldIgnoreNonMessageUpdates() {
+        // given
+        when(update.hasMessage()).thenReturn(false);
+
+        // when
+        telegramBot.onUpdateReceived(update);
+
+        // then
+        verify(commandDispatcher, never()).dispatch(any());
     }
 }
