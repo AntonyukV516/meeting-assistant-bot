@@ -24,7 +24,13 @@ repositories {
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.telegram:telegrambots-spring-boot-starter:6.9.7.1")
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+
+	implementation("org.mapstruct:mapstruct:1.5.5.Final")
+	annotationProcessor("org.mapstruct:mapstruct-processor:1.5.5.Final")
+	annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.flywaydb:flyway-core")
@@ -36,6 +42,10 @@ dependencies {
 
 	testImplementation("com.h2database:h2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.testcontainers:testcontainers:1.19.8")
+	testImplementation("org.testcontainers:junit-jupiter:1.19.8")
+	testImplementation("org.testcontainers:postgresql:1.19.8")
+	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 }
 
 checkstyle {
@@ -93,7 +103,8 @@ tasks.jacocoTestReport {
 					"**/MeetingAssistantBotApplication.class",
 					"**/config/**",
 					"**/dto/**",
-					"**/entity/**"
+					"**/model/**",
+					"**/mapper/**"
 				)
 			}
 		})
@@ -106,7 +117,7 @@ tasks.jacocoTestCoverageVerification {
 	violationRules {
 		rule {
 			limit {
-				minimum = BigDecimal.valueOf(0.3)
+				minimum = BigDecimal.valueOf(0.8)
 			}
 		}
 	}
