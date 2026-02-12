@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -15,12 +13,11 @@ import org.telegram.telegrambots.meta.api.objects.User;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("TelegramBot Routing Tests")
-class TelegramBotTest {
+@DisplayName("UpdateHandler Tests")
+class UpdateHandlerTest {
 
     @Mock
-    private UpdateHandler updateHandler;
+    private CommandDispatcher commandDispatcher;
 
     @Mock
     private Update update;
@@ -31,16 +28,16 @@ class TelegramBotTest {
     @Mock
     private User telegramUser;
 
-    private TelegramBot telegramBot;
+    private UpdateHandler updateHandler;
 
     @BeforeEach
     void setUp() {
-        telegramBot = new TelegramBot("token", "bot", updateHandler);
+        updateHandler = new UpdateHandler(commandDispatcher);
     }
 
     @Test
-    @DisplayName("✅ Должен передать обновление в UpdateHandler")
-    void onUpdateReceived_ShouldDispatchToUpdateHandler() {
+    @DisplayName("✅ Должен передать сообщение в CommandDispatcher")
+    void handle_ShouldDispatchToCommandDispatcher() {
         // given
         when(update.hasMessage()).thenReturn(true);
         when(update.getMessage()).thenReturn(message);
@@ -51,37 +48,37 @@ class TelegramBotTest {
         when(message.getChatId()).thenReturn(123L);
 
         // when
-        telegramBot.onUpdateReceived(update);
+        updateHandler.handle(update);
 
         // then
-        verify(updateHandler).handle(update);
+        verify(commandDispatcher).dispatch(message);
     }
 
     @Test
     @DisplayName("✅ Должен игнорировать сообщения без текста")
-    void onUpdateReceived_ShouldIgnoreNonTextMessages() {
+    void handle_ShouldIgnoreNonTextMessages() {
         // given
         when(update.hasMessage()).thenReturn(true);
         when(update.getMessage()).thenReturn(message);
         when(message.hasText()).thenReturn(false);
 
         // when
-        telegramBot.onUpdateReceived(update);
+        updateHandler.handle(update);
 
         // then
-        verify(updateHandler, never()).handle(any());
+        verify(commandDispatcher, never()).dispatch(any());
     }
 
     @Test
     @DisplayName("✅ Должен игнорировать обновления без сообщения")
-    void onUpdateReceived_ShouldIgnoreNonMessageUpdates() {
+    void handle_ShouldIgnoreNonMessageUpdates() {
         // given
         when(update.hasMessage()).thenReturn(false);
 
         // when
-        telegramBot.onUpdateReceived(update);
+        updateHandler.handle(update);
 
         // then
-        verify(updateHandler, never()).handle(any());
+        verify(commandDispatcher, never()).dispatch(any());
     }
 }
