@@ -26,12 +26,16 @@ class CommandDispatcherTest {
     private Message message;
 
     private CommandDispatcher commandDispatcher;
+    private final Long TEST_CHAT_ID = 12345L;
 
     @BeforeEach
     void setUp() {
         commandDispatcher = new CommandDispatcher(
                 List.of(startCommand, unknownCommand)
         );
+
+        when(message.getText()).thenReturn("/start");
+        when(message.getChatId()).thenReturn(TEST_CHAT_ID);
     }
 
     @Test
@@ -39,7 +43,7 @@ class CommandDispatcherTest {
     void dispatch_ShouldCallMatchingHandler() {
         // given
         when(message.getText()).thenReturn("/start");
-        when(startCommand.canHandle("/start")).thenReturn(true);
+        when(startCommand.canHandle("/start", TEST_CHAT_ID)).thenReturn(true);
 
         // when
         commandDispatcher.dispatch(message);
@@ -54,8 +58,8 @@ class CommandDispatcherTest {
     void dispatch_ShouldCallUnknownCommand_WhenNoHandlerFound() {
         // given
         when(message.getText()).thenReturn("/unknown");
-        when(startCommand.canHandle("/unknown")).thenReturn(false);
-        when(unknownCommand.canHandle("/unknown")).thenReturn(true);  // ✅ Unknown всегда true!
+        when(startCommand.canHandle("/unknown", TEST_CHAT_ID)).thenReturn(false);
+        when(unknownCommand.canHandle("/unknown", TEST_CHAT_ID)).thenReturn(true);
 
         // when
         commandDispatcher.dispatch(message);
@@ -70,15 +74,15 @@ class CommandDispatcherTest {
     void dispatch_ShouldIterateThroughCommandsInOrder() {
         // given
         when(message.getText()).thenReturn("/test");
-        when(startCommand.canHandle("/test")).thenReturn(false);
-        when(unknownCommand.canHandle("/test")).thenReturn(true);
+        when(startCommand.canHandle("/test", TEST_CHAT_ID)).thenReturn(false);
+        when(unknownCommand.canHandle("/test", TEST_CHAT_ID)).thenReturn(true);
 
         // when
         commandDispatcher.dispatch(message);
 
         // then
-        verify(startCommand).canHandle("/test");
-        verify(unknownCommand).canHandle("/test");
+        verify(startCommand).canHandle("/test", TEST_CHAT_ID);
+        verify(unknownCommand).canHandle("/test", TEST_CHAT_ID);
         verify(unknownCommand).handle(message);
     }
 }

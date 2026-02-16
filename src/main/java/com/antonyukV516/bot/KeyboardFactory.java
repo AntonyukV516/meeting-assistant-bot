@@ -25,8 +25,9 @@ public class KeyboardFactory {
                 .build();
     }
 
-    public ReplyKeyboardMarkup createCancelKeyboard() {
+    public ReplyKeyboardMarkup createSkipKeyboard() {
         KeyboardRow row = new KeyboardRow();
+        row.add("⏭️ Пропустить");
         row.add("❌ Отмена");
 
         return ReplyKeyboardMarkup.builder()

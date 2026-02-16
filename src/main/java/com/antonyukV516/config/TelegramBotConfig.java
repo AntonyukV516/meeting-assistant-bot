@@ -1,6 +1,7 @@
 package com.antonyukV516.config;
 
 import com.antonyukV516.bot.*;
+import com.antonyukV516.bot.command.UnknownCommand;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.telegram.telegrambots.meta.TelegramBotsApi;

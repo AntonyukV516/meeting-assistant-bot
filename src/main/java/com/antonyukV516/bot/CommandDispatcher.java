@@ -16,9 +16,10 @@ public class CommandDispatcher {
 
     public void dispatch(Message message) {
         String text = message.getText().trim();
+        Long chatId = message.getChatId();
 
         for (CommandHandler handler : commandHandlers) {
-            if (handler.canHandle(text)) {
+            if (handler.canHandle(text, chatId)) {
                 handler.handle(message);
                 return;
             }
