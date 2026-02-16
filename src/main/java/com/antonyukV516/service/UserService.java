@@ -15,6 +15,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
@@ -63,5 +64,10 @@ public class UserService {
         return userRepository.findById(username)
                 .map(userMapper::toDto)
                 .orElse(null);
+    }
+
+    @Transactional
+    public void save(User user) {
+        userRepository.save(user);
     }
 }
