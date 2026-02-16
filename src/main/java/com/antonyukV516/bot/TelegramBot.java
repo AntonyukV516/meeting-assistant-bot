@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Component
@@ -61,6 +62,27 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             instance.execute(message);
             log.debug("Message sent to chatId: {}", chatId);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send message to chatId: {}", chatId, e);
+        }
+    }
+
+    public static void sendWithKeyboard(Long chatId, String text, ReplyKeyboardMarkup keyboard) {
+        if (instance == null) {
+            log.error("TelegramBot instance not initialized");
+            return;
+        }
+
+        SendMessage message = SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(text)
+                .parseMode("HTML")
+                .replyMarkup(keyboard)
+                .build();
+
+        try {
+            instance.execute(message);
+            log.debug("Message with keyboard sent to chatId: {}", chatId);
         } catch (TelegramApiException e) {
             log.error("Failed to send message to chatId: {}", chatId, e);
         }

@@ -1,11 +1,14 @@
 package com.antonyukV516.bot;
 
 import com.antonyukV516.model.TelegramUser;
+import com.antonyukV516.model.User;
 import com.antonyukV516.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
+
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -13,6 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 public class StartCommand implements CommandHandler {
 
     private final UserService userService;
+    private final KeyboardFactory keyboardFactory;
 
     @Override
     public boolean canHandle(String text) {
@@ -23,26 +27,38 @@ public class StartCommand implements CommandHandler {
     public void handle(Message message) {
         Long chatId = message.getChatId();
         var telegramApiUser = message.getFrom();
-        TelegramUser telegramUser = TelegramUser.from(telegramApiUser);
-        String username = telegramUser.getUserName();
+        String username = telegramApiUser.getUserName();
 
         try {
-            userService.findOrCreateUser(telegramUser, chatId);
+            Optional<User> existingUser = userService.findByUsername(username);
 
-            String response = String.format(
-                    """
-                            👋 Привет, @%s!
-                                                
-                            ✅ Вы успешно зарегистрированы!
-                            """,
-                    username
-            );
+            String responseText;
+            if (existingUser.isPresent()) {
+                User user = existingUser.get();
+                if (!chatId.equals(user.getChatId())) {
+                    user.setChatId(chatId);
+                    userService.save(user);
+                }
 
-            TelegramBot.send(chatId, response);
+                responseText = String.format(
+                        "👋 С возвращением, @%s!\n\n✅ Вы уже зарегистрированы.\n\nВыберите действие:",
+                        username
+                );
+            } else {
+                TelegramUser telegramUser = TelegramUser.from(telegramApiUser);
+                userService.findOrCreateUser(telegramUser, chatId);
+
+                responseText = String.format(
+                        "👋 Привет, @%s!\n\n✅ Вы успешно зарегистрированы!\n\nВыберите действие:",
+                        username
+                );
+            }
+
+            TelegramBot.sendWithKeyboard(chatId, responseText, keyboardFactory.createMainMenu());
 
         } catch (Exception e) {
             log.error("Error handling /start command", e);
-            TelegramBot.send(chatId, "❌ Произошла ошибка при обработке команды.");
+            TelegramBot.send(chatId, "❌ Произошла ошибка");
         }
     }
 }

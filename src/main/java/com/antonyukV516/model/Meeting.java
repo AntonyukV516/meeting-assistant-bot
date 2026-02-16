@@ -36,6 +36,7 @@ public class Meeting {
     )
     @Enumerated(EnumType.STRING)
     @Column(name = "tag")
+    @Builder.Default
     private List<Tag> tags = new ArrayList<>();
 
     @Column(name = "date_time")

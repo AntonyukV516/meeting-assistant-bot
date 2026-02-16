@@ -21,6 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Validated
 @Slf4j
+@Transactional(readOnly = true)
 public class MeetingService {
 
     private final MeetingRepository meetingRepository;
