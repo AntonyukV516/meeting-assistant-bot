@@ -7,7 +7,9 @@ import com.antonyukV516.bot.state.PendingMeeting;
 import com.antonyukV516.bot.state.UserState;
 import com.antonyukV516.bot.state.UserStateService;
 import com.antonyukV516.dto.CreateMeetingDto;
+import com.antonyukV516.model.Tag;
 import com.antonyukV516.service.MeetingService;
+import com.antonyukV516.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,7 +18,9 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -25,7 +29,7 @@ public class MeetingCreationHandler implements CommandHandler {
 
     private final UserStateService stateService;
     private final MeetingService meetingService;
-    //private final NotificationService notificationService;
+    private final NotificationService notificationService;
     private final KeyboardFactory keyboardFactory;
 
     private static final DateTimeFormatter[] DATE_FORMATS = {
@@ -33,6 +37,7 @@ public class MeetingCreationHandler implements CommandHandler {
             DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
+            DateTimeFormatter.ofPattern("dd.MM.yy HH:mm"),
             DateTimeFormatter.ofPattern("dd.MM HH:mm")  // Год будет текущий
     };
 
@@ -122,28 +127,21 @@ public class MeetingCreationHandler implements CommandHandler {
         stateService.updatePendingMeeting(chatId, pending);
         stateService.setState(chatId, UserState.CREATING_MEETING_TAGS);
 
-        // TODO: Заменить на инлайн-кнопки с тегами
         TelegramBot.send(chatId,
-                "✅ Описание сохранено!\n\n" +
-                        "------------------------\n" +
-                        "**Шаг 3 из 7:**\n" +
-                        "Пока теги в разработке. Нажмите /skip чтобы продолжить");
+                "✅ Описание сохранено!");
     }
 
-    // ===================== ШАГ 3: ТЕГИ (ВРЕМЕННО) =====================
     private void handleTags(Long chatId, String input, PendingMeeting pending) {
-        // Пока просто пропускаем
-        pending.setTags(new ArrayList<>());
-        stateService.updatePendingMeeting(chatId, pending);
-        stateService.setState(chatId, UserState.CREATING_MEETING_DATE);
+        // Показываем клавиатуру с тегами
+        TelegramBot.sendWithInlineKeyboard(
+                chatId,
+                "**Шаг 3 из 7: Выберите теги**\n\n" +
+                        "Нажимайте на теги, чтобы выбрать/отменить.\n" +
+                        "Когда закончите, нажмите **ГОТОВО**.",
+                keyboardFactory.createTagSelectionKeyboard(new HashSet<>(pending.getTags()))
+        );
 
-        TelegramBot.send(chatId,
-                "------------------------\n" +
-                        "**Шаг 4 из 7:**\n" +
-                        "Введите **дату и время** встречи\n\n" +
-                        "Формат: ДД.ММ.ГГГГ ЧЧ:ММ\n" +
-                        "Например: *25.12.2025 15:30*\n\n" +
-                        "Чтобы пропустить, отправьте /skip");
+        // Не меняем состояние — ждем callback'ов
     }
 
     private void handleDateTime(Long chatId, String dateStr, PendingMeeting pending) {
@@ -274,7 +272,7 @@ public class MeetingCreationHandler implements CommandHandler {
                 CreateMeetingDto dto = CreateMeetingDto.builder()
                         .title(pending.getTitle())
                         .description(pending.getDescription())
-                        // .tags пока не передаем
+                        .tags(pending.getTags())
                         .dateTime(pending.getDateTime())
                         .location(pending.getLocation())
                         .maxPeople(pending.getMaxPeople())
@@ -282,15 +280,19 @@ public class MeetingCreationHandler implements CommandHandler {
 
                 var meeting = meetingService.createMeeting(pending.getCreatorUsername(), dto);
 
+                // Сообщение создателю
                 TelegramBot.sendWithKeyboard(chatId,
                         "✅ **ВСТРЕЧА УСПЕШНО СОЗДАНА!**\n\n" +
                                 "📌 *" + meeting.getTitle() + "*\n" +
                                 (meeting.getDateTime() != null ? "📅 " + meeting.getDateTime()
                                         .format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) + "\n" : "") +
-                                (meeting.getLocation() != null ? "📍 " + meeting.getLocation() + "\n" : ""),
+                                (meeting.getLocation() != null ? "📍 " + meeting.getLocation() + "\n" : "") +
+                                (pending.getTags() != null && !pending.getTags().isEmpty() ?
+                                        "🏷️ " + formatTags(pending.getTags()) + "\n" : ""),
                         keyboardFactory.createMainMenu());
 
-                // notificationService.notifyAllUsersAboutNewMeeting(meeting);
+                //  РАССЫЛАЕМ УВЕДОМЛЕНИЯ ВСЕМ
+                notificationService.notifyAllUsersAboutNewMeeting(meeting);
 
                 stateService.resetState(chatId);
 
@@ -304,6 +306,13 @@ public class MeetingCreationHandler implements CommandHandler {
         } else {
             TelegramBot.send(chatId, "Пожалуйста, подтвердите или отмените создание.");
         }
+    }
+
+    private String formatTags(List<Tag> tags) {
+        if (tags.isEmpty()) return "не выбраны";
+        return tags.stream()
+                .map(tag -> "`" + tag.name() + "`")
+                .collect(Collectors.joining(", "));
     }
 
     private void cancelCreation(Long chatId) {
