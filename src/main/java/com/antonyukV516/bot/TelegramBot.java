@@ -42,9 +42,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         log.debug("Received update: {}", update.getUpdateId());
 
-        if (!update.hasMessage() || !update.getMessage().hasText()) {
-            log.debug("Update ignored (not a text message)");
-            return;
+        if (update.hasCallbackQuery()) {
+            log.info("📞 Получен callback: {}", update.getCallbackQuery().getData());
+        } else if (update.hasMessage()) {
+            log.info("💬 Получено сообщение: {}", update.getMessage().getText());
+        } else {
+            log.info("🔄 Получен другой тип обновления");
         }
 
         updateHandler.handle(update);
@@ -106,9 +109,9 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         try {
             instance.execute(message);
-            log.debug("Message with inline keyboard sent to chatId: {}", chatId);
+            log.info("✅ Сообщение с инлайн-клавиатурой отправлено в чат {}", chatId);
         } catch (TelegramApiException e) {
-            log.error("Failed to send message to chatId: {}", chatId, e);
+            log.error("❌ Ошибка отправки сообщения с клавиатурой в чат {}: {}", chatId, e.getMessage());
         }
     }
 

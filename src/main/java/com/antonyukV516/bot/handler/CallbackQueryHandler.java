@@ -27,10 +27,13 @@ public class CallbackQueryHandler {
     private final KeyboardFactory keyboardFactory;
 
     public boolean canHandle(Update update) {
-        return update.hasCallbackQuery();
+        boolean result = update.hasCallbackQuery();
+        log.info("🔧 CallbackQueryHandler.canHandle() = {}", result);
+        return result;
     }
 
     public void handle(Update update) {
+        log.info("🎯 CallbackQueryHandler.handle() начал работу");
         CallbackQuery callback = update.getCallbackQuery();
         String data = callback.getData();
         Long chatId = callback.getMessage().getChatId();
@@ -49,14 +52,20 @@ public class CallbackQueryHandler {
 
     private void handleTagSelection(Long chatId, Integer messageId, String data) {
         String tagName = data.replace("tag_", "");
+        log.info("1️⃣ НАЖАТИЕ НА ТЕГ: {} от chatId: {}", tagName, chatId);
+
         try {
             Tag tag = Tag.valueOf(tagName);
+            log.info("2️⃣ ТЕГ РАСПОЗНАН: {}", tag);
 
             PendingMeeting pending = stateService.getPendingMeeting(chatId);
             if (pending == null) {
+                log.warn("⚠️ Нет PendingMeeting для chatId: {}", chatId);
                 TelegramBot.send(chatId, "❌ Сессия создания встречи истекла. Начните заново: /new");
                 return;
             }
+
+            log.info("3️⃣ ТЕКУЩИЕ ТЕГИ: {}", pending.getTags());
 
             Set<Tag> selected = new HashSet<>(pending.getTags());
             if (selected.contains(tag)) {
@@ -72,7 +81,7 @@ public class CallbackQueryHandler {
                     keyboardFactory.createTagSelectionKeyboard(selected));
 
         } catch (IllegalArgumentException e) {
-            log.error("Invalid tag: {}", tagName);
+            log.error("❌ Ошибка: неверный тег {}", tagName);
         }
     }
 

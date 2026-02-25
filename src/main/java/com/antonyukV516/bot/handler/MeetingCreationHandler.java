@@ -14,12 +14,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
@@ -132,16 +134,19 @@ public class MeetingCreationHandler implements CommandHandler {
     }
 
     private void handleTags(Long chatId, String input, PendingMeeting pending) {
-        // Показываем клавиатуру с тегами
+        Set<Tag> selected = new HashSet<>(pending.getTags());
+        InlineKeyboardMarkup keyboard = keyboardFactory.createTagSelectionKeyboard(selected);
+
+        log.info("📤 Отправляем клавиатуру с тегами в чат {}", chatId);
+        log.info("   Количество рядов: {}", keyboard.getKeyboard().size());
+
         TelegramBot.sendWithInlineKeyboard(
                 chatId,
                 "**Шаг 3 из 7: Выберите теги**\n\n" +
                         "Нажимайте на теги, чтобы выбрать/отменить.\n" +
                         "Когда закончите, нажмите **ГОТОВО**.",
-                keyboardFactory.createTagSelectionKeyboard(new HashSet<>(pending.getTags()))
+                keyboard
         );
-
-        // Не меняем состояние — ждем callback'ов
     }
 
     private void handleDateTime(Long chatId, String dateStr, PendingMeeting pending) {

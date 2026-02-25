@@ -1,6 +1,7 @@
 package com.antonyukV516.bot;
 
 import com.antonyukV516.model.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -10,6 +11,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import java.util.*;
 
 @Component
+@Slf4j
 public class KeyboardFactory {
 
     public ReplyKeyboardMarkup createMainMenu() {
@@ -65,6 +67,7 @@ public class KeyboardFactory {
                 String buttonText = (isSelected ? "✅ " : "⚪ ") + getTagEmoji(tag)
                         + " " + getTagDisplayName(tag);
                 String callbackData = "tag_" + tag.name();
+                log.info("🔘 Создана кнопка: текст='{}', callbackData='{}'", buttonText, callbackData);
 
                 row.add(InlineKeyboardButton.builder()
                         .text(buttonText)
