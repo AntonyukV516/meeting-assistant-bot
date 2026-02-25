@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -33,6 +34,9 @@ class UpdateHandlerTest {
     private Message message;
 
     @Mock
+    private CallbackQuery callbackQuery;
+
+    @Mock
     private User telegramUser;
 
     private UpdateHandler updateHandler;
@@ -43,6 +47,26 @@ class UpdateHandlerTest {
     }
 
     @Test
+    @DisplayName("✅ Должен передать callback в CallbackQueryHandler")
+    void handle_ShouldDispatchToCallbackHandler() {
+        // given
+        when(update.hasCallbackQuery()).thenReturn(true);
+        when(update.getCallbackQuery()).thenReturn(callbackQuery);
+        when(callbackQuery.getData()).thenReturn("test_data");
+        when(callbackQuery.getFrom()).thenReturn(telegramUser);
+        when(telegramUser.getUserName()).thenReturn("testuser");
+        when(callbackHandler.canHandle(update)).thenReturn(true);
+
+        // when
+        updateHandler.handle(update);
+
+        // then
+        verify(callbackHandler).canHandle(update);
+        verify(callbackHandler).handle(update);
+        verify(commandDispatcher, never()).dispatch(any());
+    }
+
+    @Test
     @DisplayName("✅ Должен передать сообщение в CommandDispatcher")
     void handle_ShouldDispatchToCommandDispatcher() {
         // given
@@ -50,33 +74,13 @@ class UpdateHandlerTest {
         when(update.hasMessage()).thenReturn(true);
         when(update.getMessage()).thenReturn(message);
         when(message.hasText()).thenReturn(true);
-        when(message.getText()).thenReturn("/start");
-        when(message.getFrom()).thenReturn(telegramUser);
-        when(telegramUser.getUserName()).thenReturn("testuser");
-        when(message.getChatId()).thenReturn(123L);
 
         // when
         updateHandler.handle(update);
 
         // then
-        verify(commandDispatcher).dispatch(message);
         verify(callbackHandler, never()).handle(any());
-    }
-
-    @Test
-    @DisplayName("✅ Должен передать callback в CallbackQueryHandler")
-    void handle_ShouldDispatchToCallbackHandler() {
-        // given
-        when(update.hasCallbackQuery()).thenReturn(true);
-
-        when(callbackHandler.canHandle(update)).thenCallRealMethod();
-
-        // when
-        updateHandler.handle(update);
-
-        // then
-        verify(callbackHandler).handle(update);
-        verify(commandDispatcher, never()).dispatch(any());
+        verify(commandDispatcher).dispatch(message);
     }
 
     @Test
@@ -97,7 +101,7 @@ class UpdateHandlerTest {
     }
 
     @Test
-    @DisplayName("✅ Должен игнорировать обновления без сообщения")
+    @DisplayName("✅ Должен игнорировать обновления без сообщения и без callback")
     void handle_ShouldIgnoreNonMessageUpdates() {
         // given
         when(update.hasCallbackQuery()).thenReturn(false);
