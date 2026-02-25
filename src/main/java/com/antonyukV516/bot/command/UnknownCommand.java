@@ -1,5 +1,7 @@
-package com.antonyukV516.bot;
+package com.antonyukV516.bot.command;
 
+import com.antonyukV516.bot.CommandHandler;
+import com.antonyukV516.bot.TelegramBot;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

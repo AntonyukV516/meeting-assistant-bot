@@ -1,5 +1,6 @@
 package com.antonyukV516.bot;
 
+import com.antonyukV516.bot.command.StartCommand;
 import com.antonyukV516.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
