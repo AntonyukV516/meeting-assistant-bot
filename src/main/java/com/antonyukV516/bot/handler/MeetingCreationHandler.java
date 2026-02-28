@@ -120,47 +120,58 @@ public class MeetingCreationHandler implements CommandHandler {
     }
 
     private void handleDescription(Long chatId, String description, PendingMeeting pending) {
-        if (!"/skip".equals(description) && description.length() > 1000) {
+        if ("⏭️ Пропустить".equals(description) || "/skip".equals(description)) {
+            pending.setDescription(null);
+            stateService.updatePendingMeeting(chatId, pending);
+            stateService.setState(chatId, UserState.CREATING_MEETING_TAGS);
+
+            showTagSelection(chatId, pending);
+            return;
+        }
+
+        if (description.length() > 1000) {
             TelegramBot.send(chatId, "❌ Описание слишком длинное (макс. 1000 символов). Попробуйте еще раз:");
             return;
         }
 
-        pending.setDescription("/skip".equals(description) ? null : description);
+        pending.setDescription(description);
         stateService.updatePendingMeeting(chatId, pending);
         stateService.setState(chatId, UserState.CREATING_MEETING_TAGS);
 
-        TelegramBot.send(chatId,
-                "✅ Описание сохранено!");
+        showTagSelection(chatId, pending);
     }
 
     private void handleTags(Long chatId, String input, PendingMeeting pending) {
-        Set<Tag> selected = new HashSet<>(pending.getTags());
-        InlineKeyboardMarkup keyboard = keyboardFactory.createTagSelectionKeyboard(selected);
+        // Если пользователь пишет текст вместо нажатия на кнопки
+        if (!input.startsWith("/") && !input.equals("❌ Отмена")) {
+            TelegramBot.send(chatId,
+                    "❌ На этом шаге нельзя вводить текст.\n\n" +
+                            "👉 **Нажимайте на кнопки ниже**, чтобы выбрать теги.\n" +
+                            "✅ ГОТОВО — когда закончите.\n" +
+                            "❌ Отмена — отменить создание.");
 
-        log.info("📤 Отправляем клавиатуру с тегами в чат {}", chatId);
-        log.info("   Количество рядов: {}", keyboard.getKeyboard().size());
+            // Повторно показываем клавиатуру
+            showTagSelection(chatId, pending);
+            return;
+        }
 
-        TelegramBot.sendWithInlineKeyboard(
-                chatId,
-                "**Шаг 3 из 7: Выберите теги**\n\n" +
-                        "Нажимайте на теги, чтобы выбрать/отменить.\n" +
-                        "Когда закончите, нажмите **ГОТОВО**.",
-                keyboard
-        );
+        // Показываем клавиатуру с тегами (если пришли с другого шага)
+        showTagSelection(chatId, pending);
     }
 
     private void handleDateTime(Long chatId, String dateStr, PendingMeeting pending) {
-        if ("/skip".equals(dateStr)) {
+        if ("⏭️ Пропустить".equals(dateStr) || "/skip".equals(dateStr)) {
             pending.setDateTime(null);
             stateService.updatePendingMeeting(chatId, pending);
             stateService.setState(chatId, UserState.CREATING_MEETING_LOC);
 
-            TelegramBot.send(chatId,
+            TelegramBot.sendWithKeyboard(chatId,
                     "------------------------\n" +
                             "**Шаг 5 из 7:**\n" +
                             "Введите **место встречи** (необязательно)\n\n" +
                             "Например: *Кафе Уголек, ул. Ленина 10*\n\n" +
-                            "Чтобы пропустить, отправьте /skip");
+                            "Чтобы пропустить, нажмите кнопку ниже",
+                    keyboardFactory.createSkipKeyboard());
             return;
         }
 
@@ -190,37 +201,63 @@ public class MeetingCreationHandler implements CommandHandler {
         stateService.updatePendingMeeting(chatId, pending);
         stateService.setState(chatId, UserState.CREATING_MEETING_LOC);
 
-        TelegramBot.send(chatId,
+        TelegramBot.sendWithKeyboard(chatId,
                 "✅ Дата сохранена: *" + dateTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) + "*\n\n" +
                         "------------------------\n" +
                         "**Шаг 5 из 7:**\n" +
                         "Введите **место встречи** (необязательно)\n\n" +
-                        "Чтобы пропустить, отправьте /skip");
+                        "Чтобы пропустить, нажмите кнопку ниже",
+                keyboardFactory.createSkipKeyboard());
     }
 
     private void handleLocation(Long chatId, String location, PendingMeeting pending) {
-        if (!"/skip".equals(location) && location.length() > 100) {
+        if ("⏭️ Пропустить".equals(location) || "/skip".equals(location)) {
+            pending.setLocation(null);
+            stateService.updatePendingMeeting(chatId, pending);
+            stateService.setState(chatId, UserState.CREATING_MEETING_MAX);
+
+            TelegramBot.sendWithKeyboard(chatId,
+                    "------------------------\n" +
+                            "**Шаг 6 из 7:**\n" +
+                            "Введите **максимальное количество участников** (необязательно)\n\n" +
+                            "Например: *10*\n\n" +
+                            "Чтобы пропустить, нажмите кнопку ниже",
+                    keyboardFactory.createSkipKeyboard());
+            return;
+        }
+
+        if (location.length() > 100) {
             TelegramBot.send(chatId, "❌ Название места слишком длинное (макс. 100 символов). Попробуйте еще раз:");
             return;
         }
 
-        pending.setLocation("/skip".equals(location) ? null : location);
+        pending.setLocation(location);
         stateService.updatePendingMeeting(chatId, pending);
         stateService.setState(chatId, UserState.CREATING_MEETING_MAX);
 
-        TelegramBot.send(chatId,
-                "✅ Место сохранено!\n\n" +
+        TelegramBot.sendWithKeyboard(chatId,
+                "✅ Место сохранено: *" + location + "*\n\n" +
                         "------------------------\n" +
                         "**Шаг 6 из 7:**\n" +
                         "Введите **максимальное количество участников** (необязательно)\n\n" +
                         "Например: *10*\n\n" +
-                        "Чтобы пропустить, отправьте /skip");
+                        "Чтобы пропустить, нажмите кнопку ниже",
+                keyboardFactory.createSkipKeyboard());
     }
 
     private void handleMaxPeople(Long chatId, String input, PendingMeeting pending) {
+        if ("⏭️ Пропустить".equals(input) || "/skip".equals(input)) {
+            pending.setMaxPeople(null);
+            stateService.updatePendingMeeting(chatId, pending);
+            stateService.setState(chatId, UserState.CONFIRM_MEETING);
+
+            showConfirmation(chatId, pending);
+            return;
+        }
+
         Integer maxPeople = null;
 
-        if (!"/skip".equals(input) && !input.isBlank()) {
+        if (!input.isBlank()) {
             try {
                 maxPeople = Integer.parseInt(input);
                 if (maxPeople < 2) {
@@ -232,7 +269,7 @@ public class MeetingCreationHandler implements CommandHandler {
                     return;
                 }
             } catch (NumberFormatException e) {
-                TelegramBot.send(chatId, "❌ Введите число. Например: *10*\nИли отправьте /skip");
+                TelegramBot.send(chatId, "❌ Введите число. Например: *10*\nИли нажмите кнопку Пропустить");
                 return;
             }
         }
@@ -241,34 +278,7 @@ public class MeetingCreationHandler implements CommandHandler {
         stateService.updatePendingMeeting(chatId, pending);
         stateService.setState(chatId, UserState.CONFIRM_MEETING);
 
-        // Формируем сводку
-        StringBuilder summary = new StringBuilder();
-        summary.append("📋 **ПРОВЕРЬТЕ ДАННЫЕ ВСТРЕЧИ**\n\n");
-        summary.append("📌 *Название:* ").append(pending.getTitle()).append("\n");
-
-        if (pending.getDescription() != null) {
-            summary.append("📝 *Описание:* ").append(pending.getDescription()).append("\n");
-        }
-
-        summary.append("🏷️ *Теги:* ")
-                .append(pending.getTags().isEmpty() ? "не выбраны" : pending.getTags()).append("\n");
-
-        if (pending.getDateTime() != null) {
-            summary.append("📅 *Дата:* ").append(pending.getDateTime()
-                    .format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))).append("\n");
-        }
-
-        if (pending.getLocation() != null) {
-            summary.append("📍 *Место:* ").append(pending.getLocation()).append("\n");
-        }
-
-        summary.append("👥 *Макс. участников:* ")
-                .append(pending.getMaxPeople() != null ? pending.getMaxPeople() : "без ограничений")
-                .append("\n\n");
-        summary.append("✅ *Всё верно?*");
-
-        TelegramBot.sendWithKeyboard(chatId, summary.toString(),
-                keyboardFactory.createConfirmationKeyboard());
+        showConfirmation(chatId, pending);
     }
 
     private void handleConfirm(Long chatId, String input, PendingMeeting pending) {
@@ -296,7 +306,7 @@ public class MeetingCreationHandler implements CommandHandler {
                                         "🏷️ " + formatTags(pending.getTags()) + "\n" : ""),
                         keyboardFactory.createMainMenu());
 
-                //  РАССЫЛАЕМ УВЕДОМЛЕНИЯ ВСЕМ
+                // РАССЫЛАЕМ УВЕДОМЛЕНИЯ ВСЕМ
                 notificationService.notifyAllUsersAboutNewMeeting(meeting);
 
                 stateService.resetState(chatId);
@@ -311,6 +321,43 @@ public class MeetingCreationHandler implements CommandHandler {
         } else {
             TelegramBot.send(chatId, "Пожалуйста, подтвердите или отмените создание.");
         }
+    }
+
+    private void showTagSelection(Long chatId, PendingMeeting pending) {
+        Set<Tag> selected = new HashSet<>(pending.getTags());
+        InlineKeyboardMarkup keyboard = keyboardFactory.createTagSelectionKeyboard(selected);
+
+        log.info("📤 Отправляем клавиатуру с тегами в чат {}", chatId);
+        log.info("   Количество рядов: {}", keyboard.getKeyboard().size());
+
+        TelegramBot.sendWithInlineKeyboard(
+                chatId,
+                "**Шаг 3 из 7: Выберите теги**\n\n" +
+                        "Нажимайте на теги, чтобы выбрать/отменить.\n" +
+                        "Когда закончите, нажмите **ГОТОВО**.",
+                keyboard
+        );
+    }
+
+    private void showConfirmation(Long chatId, PendingMeeting pending) {
+        StringBuilder summary = new StringBuilder();
+        summary.append("📋 **ПРОВЕРЬТЕ ДАННЫЕ ВСТРЕЧИ**\n\n");
+        summary.append("📌 *Название:* ").append(pending.getTitle()).append("\n");
+        summary.append("📝 *Описание:* ").append(pending
+                .getDescription() != null ? pending.getDescription() : "не указано").append("\n");
+        summary.append("🏷️ *Теги:* ").append(pending.getTags()
+                .isEmpty() ? "не выбраны" : formatTags(pending.getTags())).append("\n");
+        summary.append("📅 *Дата:* ").append(pending.getDateTime() != null ?
+                pending.getDateTime().format(DateTimeFormatter
+                        .ofPattern("dd.MM.yyyy HH:mm")) : "не указана").append("\n");
+        summary.append("📍 *Место:* ").append(pending
+                .getLocation() != null ? pending.getLocation() : "не указано").append("\n");
+        summary.append("👥 *Макс. участников:* ").append(pending
+                .getMaxPeople() != null ? pending.getMaxPeople() : "без ограничений").append("\n\n");
+        summary.append("✅ *Всё верно?*");
+
+        TelegramBot.sendWithKeyboard(chatId, summary.toString(),
+                keyboardFactory.createConfirmationKeyboard());
     }
 
     private String formatTags(List<Tag> tags) {
