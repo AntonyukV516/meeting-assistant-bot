@@ -22,10 +22,11 @@ public class UnknownCommand implements CommandHandler {
         Long chatId = message.getChatId();
 
         String response = """
-                🤔 Я пока понимаю только команду /start
+                🤔 Я не понимаю такую команду
                                 
                 Доступные команды:
                 /start - начать работу с ботом
+                /new создать новую встречу
                 """;
 
         TelegramBot.send(chatId, response);
