@@ -12,6 +12,20 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+/**
+ * Главный класс Telegram бота.
+ * <p>
+ * Отвечает за получение обновлений от Telegram API и передачу их в {@link UpdateHandler}.
+ * Реализует паттерн Singleton через статическое поле instance для доступа из статических методов.
+ * </p>
+ *
+ * <p>Все сообщения отправляются через статические методы этого класса.</p>
+ *
+ * @author AntonyukV516
+ * @version 1.0
+ * @see UpdateHandler
+ * @see CommandDispatcher
+ */
 @Component
 @Slf4j
 public class TelegramBot extends TelegramLongPollingBot {
@@ -22,6 +36,13 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final String botUsername;
     private final UpdateHandler updateHandler;
 
+    /**
+     * Создает экземпляр бота и сохраняет его в статическом поле.
+     *
+     * @param botToken       токен бота из application.yml (переменная окружения BOT_TOKEN)
+     * @param botUsername    username бота из application.yml (без @)
+     * @param updateHandler  обработчик обновлений, который будет получать все события
+     */
     public TelegramBot(
             @Value("${telegram.bot.token}") String botToken,
             @Value("${telegram.bot.username}") String botUsername,
@@ -33,11 +54,25 @@ public class TelegramBot extends TelegramLongPollingBot {
         TelegramBot.instance = this;
     }
 
+    /**
+     * Возвращает username бота для Telegram API.
+     *
+     * @return username бота
+     */
     @Override
     public String getBotUsername() {
         return botUsername;
     }
 
+    /**
+     * Обрабатывает входящее обновление от Telegram.
+     * <p>
+     * Все типы обновлений (текстовые сообщения, callback'и от кнопок и т.д.)
+     * передаются в {@link UpdateHandler} без фильтрации.
+     * </p>
+     *
+     * @param update обновление от Telegram API
+     */
     @Override
     public void onUpdateReceived(Update update) {
         log.debug("Received update: {}", update.getUpdateId());
@@ -53,6 +88,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         updateHandler.handle(update);
     }
 
+    /**
+            * Отправляет простое текстовое сообщение без клавиатуры.
+            *
+            * @param chatId ID чата получателя
+     * @param text   текст сообщения (поддерживается HTML-разметка)
+     */
     public static void send(Long chatId, String text) {
         if (instance == null) {
             log.error("TelegramBot instance not initialized");
@@ -73,6 +114,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    /**
+     * Отправляет сообщение с обычной клавиатурой (ReplyKeyboard).
+     *
+     * @param chatId   ID чата получателя
+     * @param text     текст сообщения
+     * @param keyboard клавиатура для отправки
+     */
     public static void sendWithKeyboard(Long chatId, String text, ReplyKeyboardMarkup keyboard) {
         if (instance == null) {
             log.error("TelegramBot instance not initialized");
@@ -94,6 +142,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    /**
+     * Отправляет сообщение с инлайн-клавиатурой (кнопки под сообщением).
+     *
+     * @param chatId   ID чата получателя
+     * @param text     текст сообщения
+     * @param keyboard инлайн-клавиатура
+     */
     public static void sendWithInlineKeyboard(Long chatId, String text, InlineKeyboardMarkup keyboard) {
         if (instance == null) {
             log.error("TelegramBot instance not initialized");
@@ -115,6 +170,16 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    /**
+     * Обновляет клавиатуру у существующего сообщения.
+     * <p>
+     * Используется при выборе тегов, чтобы обновить ✅/⚪ без отправки нового сообщения.
+     * </p>
+     *
+     * @param chatId    ID чата
+     * @param messageId ID сообщения для обновления
+     * @param keyboard  новая клавиатура
+     */
     public static void editMessageKeyboard(Long chatId, Integer messageId, InlineKeyboardMarkup keyboard) {
         if (instance == null) return;
 
@@ -132,6 +197,15 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    /**
+     * Удаляет сообщение.
+     * <p>
+     * Используется после завершения выбора тегов, чтобы убрать сообщение с клавиатурой.
+     * </p>
+     *
+     * @param chatId    ID чата
+     * @param messageId ID сообщения для удаления
+     */
     public static void deleteMessage(Long chatId, Integer messageId) {
         if (instance == null) return;
 
