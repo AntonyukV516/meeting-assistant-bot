@@ -24,6 +24,33 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Обработчик диалога создания встречи.
+ * <p>
+ * Реализует 7-шаговый процесс создания встречи:
+ * <ol>
+ *   <li>Ввод названия</li>
+ *   <li>Ввод описания (опционально)</li>
+ *   <li>Выбор тегов через инлайн-кнопки</li>
+ *   <li>Ввод даты и времени</li>
+ *   <li>Ввод места (опционально)</li>
+ *   <li>Ввод максимального количества участников (опционально)</li>
+ *   <li>Подтверждение и создание встречи</li>
+ * </ol>
+ * </p>
+ *
+ * <p>Управляет состояниями через {@link UserStateService} и хранит временные данные
+ * в {@link PendingMeeting}. После успешного создания отправляет уведомления через
+ * {@link NotificationService}.</p>
+ *
+ * @author AntonyukV516
+ * @version 1.0
+ * @see UserStateService
+ * @see PendingMeeting
+ * @see MeetingService
+ * @see NotificationService
+ * @see KeyboardFactory
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -34,6 +61,20 @@ public class MeetingCreationHandler implements CommandHandler {
     private final NotificationService notificationService;
     private final KeyboardFactory keyboardFactory;
 
+    /**
+            * Форматы даты, которые понимает бот.
+            * <p>
+     * Поддерживаются форматы:
+            * <ul>
+     *   <li>{@code dd.MM.yyyy HH:mm}</li>
+            *   <li>{@code dd-MM-yyyy HH:mm}</li>
+            *   <li>{@code dd/MM/yyyy HH:mm}</li>
+            *   <li>{@code yyyy-MM-dd HH:mm}</li>
+            *   <li>{@code dd.MM.yy HH:mm}</li>
+            *   <li>{@code dd.MM HH:mm} (год будет текущий)</li>
+            * </ul>
+            * </p>
+            */
     private static final DateTimeFormatter[] DATE_FORMATS = {
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"),
             DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),
@@ -43,11 +84,40 @@ public class MeetingCreationHandler implements CommandHandler {
             DateTimeFormatter.ofPattern("dd.MM HH:mm")  // Год будет текущий
     };
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Обработчик срабатывает только если пользователь находится в процессе создания встречи
+     * (состояние не {@link UserState#NONE}).
+     * </p>
+     *
+     * @param text   текст сообщения
+     * @param chatId идентификатор чата
+     * @return {@code true} если пользователь создает встречу
+     */
     @Override
     public boolean canHandle(String text, Long chatId) {
         return stateService.isCreatingMeeting(chatId);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Основной метод обработки диалога. В зависимости от текущего состояния пользователя
+     * вызывает соответствующий метод:
+     * <ul>
+     *   <li>{@link UserState#CREATING_MEETING_TITLE} → {@link #handleTitle}</li>
+     *   <li>{@link UserState#CREATING_MEETING_DESC} → {@link #handleDescription}</li>
+     *   <li>{@link UserState#CREATING_MEETING_TAGS} → {@link #handleTags}</li>
+     *   <li>{@link UserState#CREATING_MEETING_DATE} → {@link #handleDateTime}</li>
+     *   <li>{@link UserState#CREATING_MEETING_LOC} → {@link #handleLocation}</li>
+     *   <li>{@link UserState#CREATING_MEETING_MAX} → {@link #handleMaxPeople}</li>
+     *   <li>{@link UserState#CONFIRM_MEETING} → {@link #handleConfirm}</li>
+     * </ul>
+     * </p>
+     *
+     * @param message сообщение от пользователя
+     */
     @Override
     public void handle(Message message) {
         Long chatId = message.getChatId();

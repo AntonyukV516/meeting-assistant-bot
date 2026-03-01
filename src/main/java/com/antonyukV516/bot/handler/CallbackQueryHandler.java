@@ -18,6 +18,20 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Обработчик callback-запросов от инлайн-кнопок.
+ * <p>
+ * Отвечает за обработку нажатий на:
+ * <ul>
+ *   <li>Кнопки выбора тегов (префикс {@code tag_})</li>
+ *   <li>Кнопку завершения выбора тегов ({@code tags_done})</li>
+ *   <li>Кнопку присоединения к встрече (префикс {@code join_})</li>
+ * </ul>
+ * </p>
+ *
+ * @author AntonyukV516
+ * @version 1.0
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -26,12 +40,23 @@ public class CallbackQueryHandler {
     private final UserStateService stateService;
     private final KeyboardFactory keyboardFactory;
 
+    /**
+     * Определяет, является ли обновление callback-запросом.
+     *
+     * @param update обновление от Telegram
+     * @return {@code true} если есть callback
+     */
     public boolean canHandle(Update update) {
         boolean result = update.hasCallbackQuery();
         log.info("🔧 CallbackQueryHandler.canHandle() = {}", result);
         return result;
     }
 
+    /**
+     * Обрабатывает callback-запрос.
+     *
+     * @param update обновление с callback
+     */
     public void handle(Update update) {
         log.info("🎯 CallbackQueryHandler.handle() начал работу");
         CallbackQuery callback = update.getCallbackQuery();

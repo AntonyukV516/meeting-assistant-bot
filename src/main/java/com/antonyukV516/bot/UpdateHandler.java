@@ -7,6 +7,22 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+/**
+ * Обработчик входящих обновлений от Telegram.
+ * <p>
+ * Выполняет первичную маршрутизацию:
+ * <ul>
+ *   <li>Callback'и от инлайн-кнопок → {@link CallbackQueryHandler}</li>
+ *   <li>Текстовые сообщения → {@link CommandDispatcher}</li>
+ *   <li>Остальные типы игнорируются</li>
+ * </ul>
+ * </p>
+ *
+ * @author AntonyukV516
+ * @version 1.0
+ * @see CallbackQueryHandler
+ * @see CommandDispatcher
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -15,6 +31,11 @@ public class UpdateHandler {
     private final CommandDispatcher commandDispatcher;
     private final CallbackQueryHandler callbackHandler;
 
+    /**
+     * Обрабатывает обновление от Telegram.
+     *
+     * @param update обновление от Telegram API
+     */
     public void handle(Update update) {
         // 1. Логируем тип обновления
         log.info("🔍 Update received. hasCallbackQuery: {}, hasMessage: {}",

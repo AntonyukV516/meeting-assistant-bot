@@ -13,6 +13,32 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.util.Optional;
 
+/**
+ * Обработчик команды {@code /start}.
+ * <p>
+ * Выполняет регистрацию нового пользователя или приветствует существующего.
+ * После успешной обработки показывает главное меню с кнопками.
+ * </p>
+ *
+ * <p>Команда срабатывает на:</p>
+ * <ul>
+ *   <li>Текстовую команду {@code /start}</li>
+ * </ul>
+ *
+ * <p>Алгоритм работы:</p>
+ * <ol>
+ *   <li>Проверяет, есть ли пользователь в БД по username</li>
+ *   <li>Если есть — обновляет chatId (на случай если он изменился) и приветствует</li>
+ *   <li>Если нет — создает нового пользователя через {@link UserService#findOrCreateUser}</li>
+ *   <li>В любом случае показывает главное меню через {@link KeyboardFactory#createMainMenu()}</li>
+ * </ol>
+ *
+ * @author AntonyukV516
+ * @version 1.0
+ * @see UserService
+ * @see KeyboardFactory
+ * @see TelegramBot#sendWithKeyboard
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -21,11 +47,29 @@ public class StartCommand implements CommandHandler {
     private final UserService userService;
     private final KeyboardFactory keyboardFactory;
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Для данной команды проверяет, является ли текст сообщения {@code "/start"}.
+     * </p>
+     *
+     * @param text текст сообщения от пользователя
+     * @return {@code true} если текст равен {@code "/start"}
+     */
     @Override
     public boolean canHandle(String text) {
         return "/start".equals(text);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Выполняет регистрацию/приветствие пользователя и показывает главное меню.
+     * В случае ошибки отправляет сообщение об ошибке.
+     * </p>
+     *
+     * @param message сообщение от пользователя
+     */
     @Override
     public void handle(Message message) {
         Long chatId = message.getChatId();

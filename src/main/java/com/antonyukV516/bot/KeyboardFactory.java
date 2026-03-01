@@ -10,10 +10,35 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 
 import java.util.*;
 
+/**
+ * Фабрика для создания клавиатур Telegram.
+ * <p>
+ * Содержит методы для создания различных типов клавиатур:
+ * <ul>
+ *   <li>Главное меню (ReplyKeyboard)</li>
+ *   <li>Клавиатуры для диалогов (Пропустить/Отмена)</li>
+ *   <li>Инлайн-клавиатуры для выбора тегов</li>
+ *   <li>Кнопки присоединения к встречам</li>
+ * </ul>
+ * </p>
+ *
+ * @author AntonyukV516
+ * @version 1.0
+ */
 @Component
 @Slf4j
 public class KeyboardFactory {
 
+    /**
+     * Создает главное меню с кнопками:
+     * <ul>
+     *   <li>📝 Создать встречу</li>
+     *   <li>📋 Мои встречи</li>
+     *   <li>❓ Помощь</li>
+     * </ul>
+     *
+     * @return клавиатура главного меню
+     */
     public ReplyKeyboardMarkup createMainMenu() {
         KeyboardRow row1 = new KeyboardRow();
         row1.add("📝 Создать встречу");
@@ -30,6 +55,11 @@ public class KeyboardFactory {
                 .build();
     }
 
+    /**
+     * Создает клавиатуру для пропуска шага.
+     *
+     * @return клавиатура с кнопками "⏭️ Пропустить" и "❌ Отмена"
+     */
     public ReplyKeyboardMarkup createSkipKeyboard() {
         KeyboardRow row = new KeyboardRow();
         row.add("⏭️ Пропустить");
@@ -42,6 +72,11 @@ public class KeyboardFactory {
                 .build();
     }
 
+    /**
+     * Создает клавиатуру подтверждения.
+     *
+     * @return клавиатура с кнопками "✅ Подтвердить" и "❌ Отмена"
+     */
     public ReplyKeyboardMarkup createConfirmationKeyboard() {
         KeyboardRow row = new KeyboardRow();
         row.add("✅ Подтвердить");
@@ -54,6 +89,15 @@ public class KeyboardFactory {
                 .build();
     }
 
+    /**
+     * Создает инлайн-клавиатуру для выбора тегов.
+     * <p>
+     * Теги группируются по 3 в ряд. Выбранные теги отмечаются ✅.
+     * </p>
+     *
+     * @param selectedTags множество уже выбранных тегов
+     * @return инлайн-клавиатура со всеми тегами и кнопкой "✅ ГОТОВО"
+     */
     public InlineKeyboardMarkup createTagSelectionKeyboard(Set<Tag> selectedTags) {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
@@ -87,6 +131,12 @@ public class KeyboardFactory {
         return InlineKeyboardMarkup.builder().keyboard(rows).build();
     }
 
+    /**
+     * Возвращает эмодзи для тега.
+     *
+     * @param tag тег
+     * @return соответствующий эмодзи
+     */
     private String getTagEmoji(Tag tag) {
         return switch (tag) {
             case COFFEE -> "☕";
@@ -109,11 +159,23 @@ public class KeyboardFactory {
         };
     }
 
+    /**
+     * Возвращает отображаемое имя тега (с заглавной буквы).
+     *
+     * @param tag тег
+     * @return имя тега, например "Coffee", "Walk" и т.д.
+     */
     private String getTagDisplayName(Tag tag) {
         String name = tag.name().toLowerCase();
         return name.substring(0, 1).toUpperCase() + name.substring(1);
     }
 
+    /**
+     * Создает инлайн-кнопку для присоединения к встрече.
+     *
+     * @param meetingId UUID встречи
+     * @return инлайн-клавиатура с одной кнопкой "✅ ПРИСОЕДИНИТЬСЯ"
+     */
     public InlineKeyboardMarkup createJoinButton(UUID meetingId) {
         InlineKeyboardButton joinButton = InlineKeyboardButton.builder()
                 .text("✅ ПРИСОЕДИНИТЬСЯ")
