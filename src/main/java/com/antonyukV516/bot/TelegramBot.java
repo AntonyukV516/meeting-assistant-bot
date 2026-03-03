@@ -221,6 +221,4 @@ public class TelegramBot extends TelegramLongPollingBot {
             log.error("Failed to delete message", e);
         }
     }
-
-
 }

@@ -106,8 +106,6 @@ jobs:
             postgres:16-alpine
 
           echo "⏳ Waiting for PostgreSQL to be ready..."
-          
-          # Используем bash-совместимый синтаксис
           for i in {1..30}; do
             if docker exec test-postgres pg_isready -U postgres > /dev/null 2>&1; then
               echo "✅ PostgreSQL is ready!"
