@@ -4,6 +4,7 @@ plugins {
 	id("io.spring.dependency-management") version "1.1.7"
 	id("checkstyle")
 	id("jacoco")
+	id("org.flywaydb.flyway") version "9.22.3"
 }
 
 group = "com.antonyukV516"
@@ -135,4 +136,12 @@ tasks.register("jacocoInfo") {
 		println("   • ./gradlew jacocoTestReport  - Generate coverage report")
 		println("   • ./gradlew jacocoTestCoverageVerification - Check coverage limits")
 	}
+}
+
+flyway {
+	url = "jdbc:postgresql://localhost:5432/meeting_bot_db"
+	user = "postgres"
+	password = "bot_password"
+	schemas = arrayOf("public")
+	locations = arrayOf("filesystem:src/main/resources/db/migration")
 }
