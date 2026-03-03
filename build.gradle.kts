@@ -4,7 +4,7 @@ plugins {
 	id("io.spring.dependency-management") version "1.1.7"
 	id("checkstyle")
 	id("jacoco")
-	id("org.flywaydb.flyway") version "9.22.3"
+	id("org.flywaydb.flyway") version "10.20.0"
 }
 
 group = "com.antonyukV516"
