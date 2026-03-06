@@ -141,18 +141,20 @@ jobs:
       - name: Test migrations
         run: |
           echo "🚀 Testing Flyway migrations..."
-          
-          # Запускаем контейнер с приложением в фоне
+
+          # Запускаем контейнер с токеном
           docker run -d --name migration-test \
             --link test-postgres:postgres \
             -e SPRING_DATASOURCE_URL=jdbc:postgresql://test-postgres:5432/meeting_bot_db \
             -e SPRING_DATASOURCE_USERNAME=bot_user \
             -e SPRING_DATASOURCE_PASSWORD=bot_password \
+            -e BOT_TOKEN=${{ secrets.BOT_TOKEN }} \
+            -e BOT_USERNAME=${{ secrets.BOT_USERNAME }} \
             meeting-bot:ci-${{ github.sha }}
 
-          # Ждём 15 секунд для применения миграций
+          # Ждём 10 секунд для применения миграций
           echo "⏳ Waiting for migrations to apply..."
-          sleep 15
+          sleep 10
 
           # Проверяем, что контейнер всё ещё работает (не упал)
           if docker ps --filter "name=migration-test" --filter "status=running" | grep migration-test; then
