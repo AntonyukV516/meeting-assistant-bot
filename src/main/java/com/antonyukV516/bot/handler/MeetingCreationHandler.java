@@ -409,6 +409,7 @@ public class MeetingCreationHandler implements CommandHandler {
         );
     }
 
+    //TODO Добавить возможность изменения, то есть отката к предидущему этапу
     private void showConfirmation(Long chatId, PendingMeeting pending) {
         StringBuilder summary = new StringBuilder();
         summary.append("📋 **ПРОВЕРЬТЕ ДАННЫЕ ВСТРЕЧИ**\n\n");

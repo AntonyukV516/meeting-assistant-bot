@@ -154,8 +154,8 @@ class KeyboardFactoryTest {
         List<List<InlineKeyboardButton>> rows = keyboard.getKeyboard();
 
         // Проверяем, что названия с заглавной буквы
-        assertThat(rows.get(0).get(0).getText()).contains("Coffee");
-        assertThat(rows.get(0).get(1).getText()).contains("Walk");
-        assertThat(rows.get(0).get(2).getText()).contains("Sport");
+        assertThat(rows.get(0).get(0).getText()).contains("Кофе");
+        assertThat(rows.get(0).get(1).getText()).contains("Прогулка");
+        assertThat(rows.get(0).get(2).getText()).contains("Спорт");
     }
 }
