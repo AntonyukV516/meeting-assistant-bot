@@ -160,14 +160,31 @@ public class KeyboardFactory {
     }
 
     /**
-     * Возвращает отображаемое имя тега (с заглавной буквы).
+     * Возвращает отображаемое имя тега на русском языке.
      *
      * @param tag тег
-     * @return имя тега, например "Coffee", "Walk" и т.д.
+     * @return имя тега на русском, например "Кофе", "Прогулка" и т.д.
      */
     private String getTagDisplayName(Tag tag) {
-        String name = tag.name().toLowerCase();
-        return name.substring(0, 1).toUpperCase() + name.substring(1);
+        return switch (tag) {
+            case COFFEE -> "Кофе";
+            case WALK -> "Прогулка";
+            case SPORT -> "Спорт";
+            case FOOD -> "Еда";
+            case MOVIE -> "Кино";
+            case GAMES -> "Игры";
+            case STUDY -> "Учеба";
+            case WORK -> "Работа";
+            case MUSIC -> "Музыка";
+            case ART -> "Искусство";
+            case TRAVEL -> "Путешествия";
+            case BUSINESS -> "Бизнес";
+            case TECH -> "Технологии";
+            case BOOKS -> "Книги";
+            case BAR -> "Бар";
+            case LANGUAGE -> "Языки";
+            default -> tag.name().toLowerCase();
+        };
     }
 
     /**

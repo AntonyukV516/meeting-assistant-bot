@@ -138,6 +138,44 @@ jobs:
       - name: Build Docker image
         run: docker build -t meeting-bot:ci-${{ github.sha }} .
 
+      - name: Test migrations
+        run: |
+          echo "🚀 Testing Flyway migrations..."
+          
+          # Запускаем контейнер с приложением в фоне
+          docker run -d --name migration-test \
+            --link test-postgres:postgres \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://test-postgres:5432/meeting_bot_db \
+            -e SPRING_DATASOURCE_USERNAME=bot_user \
+            -e SPRING_DATASOURCE_PASSWORD=bot_password \
+            meeting-bot:ci-${{ github.sha }}
+
+          # Ждём 15 секунд для применения миграций
+          echo "⏳ Waiting for migrations to apply..."
+          sleep 15
+
+          # Проверяем, что контейнер всё ещё работает (не упал)
+          if docker ps --filter "name=migration-test" --filter "status=running" | grep migration-test; then
+            echo "✅ Migrations applied successfully!"
+          else
+            echo "❌ Container failed! Checking logs..."
+            docker logs migration-test
+            exit 1
+          fi
+
+          # Проверяем наличие таблиц в БД
+          echo "🔍 Checking tables in database..."
+          docker exec test-postgres psql -U postgres -d meeting_bot_db -c "
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+          "
+
+          # Останавливаем тестовый контейнер
+          docker stop migration-test
+          docker rm migration-test
+
       - name: Run and health check with PostgreSQL
         run: |
           docker run -d --name meeting-bot-container -p 8080:8080 \
