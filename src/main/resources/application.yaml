@@ -28,6 +28,14 @@ spring:
       app-user: bot_user
       app-password: bot_password
 
+  task:
+    execution:
+      pool:
+        core-size: 5
+        max-size: 20
+        queue-capacity: 100
+      thread-name-prefix: async-
+
 server:
   port: 8080
 
