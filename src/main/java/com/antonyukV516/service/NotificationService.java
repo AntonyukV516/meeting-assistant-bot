@@ -7,12 +7,25 @@ import com.antonyukV516.model.User;
 import com.antonyukV516.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * Сервис для отправки уведомлений пользователям.
+ * <p>
+ * Реализует как синхронную, так и асинхронную отправку сообщений через Telegram Bot API.
+ * Для массовых рассылок используется асинхронный подход с пулом потоков,
+ * чтобы не блокировать основной поток обработки команд пользователя.
+ * </p>
+ *
+ * @author AntonyukV516
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -25,52 +38,119 @@ public class NotificationService {
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     /**
-     * Отправляет уведомление о новой встрече всем пользователям, кроме создателя
+     * Синхронная отправка сообщения пользователю.
+     *
+     * @param chatId идентификатор чата в Telegram
+     * @param text   текст сообщения
+     */
+    public void sendNotificationSync(Long chatId, String text) {
+        TelegramBot.send(chatId, text);
+    }
+
+    /**
+     * Асинхронная отправка одного уведомления с инлайн-кнопкой.
+     * <p>
+     * Метод выполняется в отдельном потоке из пула {@code notificationExecutor}.
+     * Отправляет сообщение с кнопкой "ПРИСОЕДИНИТЬСЯ".
+     * </p>
+     *
+     * @param chatId    идентификатор чата в Telegram
+     * @param meeting   встреча, на которую приглашают
+     * @param meetingInfo отформатированная информация о встрече
+     * @return CompletableFuture с результатом отправки
+     */
+    @Async("notificationExecutor")
+    public CompletableFuture<Boolean> sendNotificationWithJoinButtonAsync(Long chatId,
+                                                                          Meeting meeting,
+                                                                          String meetingInfo) {
+        log.debug("📤 Отправка уведомления с кнопкой в чат {} (поток: {})",
+                chatId, Thread.currentThread().getName());
+
+        try {
+            String message = String.format(
+                    "📢 **НОВАЯ ВСТРЕЧА!**\n\n" +
+                            "От: @%s\n" +
+                            "%s",
+                    meeting.getCreator().getTelegramUsername(),
+                    meetingInfo
+            );
+
+            TelegramBot.sendWithInlineKeyboard(
+                    chatId,
+                    message,
+                    keyboardFactory.createJoinButton(meeting.getId())
+            );
+
+            log.debug("✅ Уведомление с кнопкой отправлено в чат {}", chatId);
+            return CompletableFuture.completedFuture(true);
+        } catch (Exception e) {
+            log.error("❌ Ошибка отправки уведомления в чат {}: {}", chatId, e.getMessage());
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+
+    /**
+     * Асинхронная рассылка уведомлений о новой встрече с кнопкой "ПРИСОЕДИНИТЬСЯ".
+     * <p>
+     * Отправляет сообщение всем зарегистрированным пользователям, кроме создателя встречи.
+     * Рассылка выполняется в фоновом режиме, не блокируя основной поток.
+     * </p>
+     *
+     * @param meeting созданная встреча
      */
     public void notifyAllUsersAboutNewMeeting(Meeting meeting) {
         List<User> allUsers = userRepository.findAll();
         String creatorUsername = meeting.getCreator().getTelegramUsername();
-
         String meetingInfo = formatMeetingInfo(meeting);
-        int sentCount = 0;
+
+        List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 
         for (User user : allUsers) {
-            // Не отправляем создателю
             if (user.getTelegramUsername().equals(creatorUsername)) {
                 continue;
             }
 
             if (user.getChatId() != null) {
-                boolean sent = sendMeetingNotification(user.getChatId(), meeting, meetingInfo);
-                if (sent) sentCount++;
+                CompletableFuture<Boolean> future = sendNotificationWithJoinButtonAsync(
+                        user.getChatId(), meeting, meetingInfo);
+                futures.add(future);
             }
         }
 
-        log.info("Sent notifications about meeting {} to {} users",
-                meeting.getId(), sentCount);
+        CompletableFuture.runAsync(() -> logNotificationResults(futures, futures.size()));
+
+        log.info("🚀 Запущена асинхронная рассылка {} уведомлений о встрече '{}'",
+                futures.size(), meeting.getTitle());
     }
 
     /**
-     * Отправляет уведомление конкретному пользователю
+     * Фоновое логирование результатов рассылки.
+     *
+     * @param futures    список CompletableFuture отправок
+     * @param totalCount общее количество запланированных отправок
      */
-    private boolean sendMeetingNotification(Long chatId, Meeting meeting, String meetingInfo) {
-        String message = String.format(
-                "📢 **НОВАЯ ВСТРЕЧА!**\n\n" +
-                        "От: @%s\n" +
-                        "%s\n\n" +
-                        "👇 Нажмите кнопку, чтобы присоединиться:",
-                meeting.getCreator().getTelegramUsername(),
-                meetingInfo
-        );
+    private void logNotificationResults(List<CompletableFuture<Boolean>> futures, int totalCount) {
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(15, TimeUnit.SECONDS);
 
-        InlineKeyboardMarkup keyboard = keyboardFactory.createJoinButton(meeting.getId());
+            long successCount = futures.stream()
+                    .filter(f -> f.getNow(false))
+                    .count();
 
-        TelegramBot.sendWithInlineKeyboard(chatId, message, keyboard);
-        return true;
+            log.info("✅ Рассылка завершена: {}/{} успешно отправлено", successCount, totalCount);
+
+        } catch (Exception e) {
+            log.warn("⚠️ Рассылка частично не удалась: {}", e.getMessage());
+        }
     }
 
     /**
-     * Форматирует информацию о встрече для сообщения
+     * Форматирует информацию о встрече для отображения в уведомлении.
+     *
+     * @param meeting встреча
+     * @return отформатированная строка с информацией о встрече
      */
     private String formatMeetingInfo(Meeting meeting) {
         StringBuilder sb = new StringBuilder();
